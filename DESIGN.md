@@ -92,7 +92,7 @@ The PostgreSQL schema enforces strict relational integrity:
 
 ## 7. Important Engineering Decisions / Trade-offs
 
-- **Playwright Overhead**: Trading backend memory usage and execution time for the absolute necessity of handling client-side WASM challenges. 
+- **Playwright Overhead**: Trading backend memory usage and execution time for the absolute necessity of bypassing client-side WASM challenges. 
 - **Push vs. Pull Scheduling**: Trading internal architectural autonomy for guaranteed execution reliability by exposing an external cron webhook.
 - **Event Sourcing for Prices**: Storing prices as an append-only time series (`price_history`) rather than simply updating a "current_price" column on the product table. This allows for rich historical graphing and transition analysis at the cost of slightly higher database storage.
 
@@ -105,17 +105,19 @@ The system explicitly handles the following edge cases:
 - **Original vs. Current Price**: Locators specifically target the current active price, explicitly rejecting `.price-original` nodes containing struck-through legacy prices.
 - **Graceful Degradation**: If the store layout fundamentally changes, the scrape fails safely and logs a DOM structure error rather than inserting corrupt `$0.00` values.
 
-## 9. AI-Assisted Development: Mistakes & Corrections
+## 9. AI-Assisted Development: From Prototype to Reliable Scraper
 
-The development process utilized AI pair programming. Below is a log of actual implementation mistakes introduced during the generative phases and how they were structurally corrected through engineering review:
+AI was used extensively during implementation, but the scraper required significant engineering iteration against the actual INE mock store. The initial generated approaches failed on the store's WASM challenge, dynamic price reveal, DOM obfuscation, misleading stock text, cookie overlays, and transient failures. The following examples document how those failures were investigated and corrected through browser inspection, targeted extraction logic, retry handling, and headed verification.
 
-| Initial AI approach/problem | What was wrong | Correction |
+| Initial AI approach/problem | What failed in real testing | Engineering correction |
 |---|---|---|
-| Implementing scraping via Axios/Cheerio | Failed to account for the WASM-based PoW challenge and dynamic rendering of the SPA mock store. | Swapped entirely to Playwright to emulate a full browser environment capable of executing WASM challenges. |
-| Using `setInterval` for the background cron | The backend hosted on Render's free tier would go to sleep, killing the interval and halting the required 2-hour schedule. | Re-architected the scheduler to expose a secure REST endpoint and delegated trigger responsibility to an external cron service (cron-job.org). |
-| Selecting prices via generic CSS selectors | Accidentally extracted the `.price-original` struck-through price instead of the actual current active price on discounted items. | Refined Playwright locators to explicitly target the active price container and explicitly ignore legacy/struck-through elements. |
-| Extracting stock status via full-page parsing | Inadvertently extracted "In Stock" text from related product carousels when the main product was actually out of stock. | Scoped the Playwright stock extraction strictly to the main product's immediate metadata container. |
-| Missing click events on "Reveal Price" | The scraper repeatedly timed out because a cookie consent overlay physically intercepted the Playwright mouse click on the reveal button. | Added pre-extraction handling to detect and dismiss cookie overlays/modals before attempting to interact with the DOM. |
+| Initial Axios/Cheerio scraper | Could not reliably obtain product data because the store uses client-side rendering and a WASM Proof-of-Work flow before the useful content becomes available. | Investigated the store's actual browser behavior and moved the scraper to Playwright, allowing the application to execute the same browser-side flow as a real user. |
+| Generic price extraction | The scraper repeatedly selected the original/struck-through price instead of the actual discounted price. The current price was also obfuscated with zero-width characters. | Inspected the rendered DOM after the Reveal Price interaction and restricted extraction to the active price element, rejecting hidden/struck-through values and sanitizing zero-width characters. |
+| Full-page stock extraction | A product could be reported `IN_STOCK` because the scraper found stock text belonging to a related-product section rather than the selected product. | Reverse-engineered the product-page structure and scoped stock extraction to the main product's stock badge/metadata container. Missing expected stock metadata now causes a scrape failure rather than `UNKNOWN`. |
+| Direct Playwright click on Reveal Price | The Reveal Price interaction intermittently timed out because a cookie-consent overlay intercepted the physical mouse interaction. | Added overlay detection/dismissal and stabilized the interaction flow before attempting Reveal Price. Verified the behavior in headed browser runs. |
+| Single-attempt scraping | Slow responses, browser failures and challenge timeouts could leave a product with no reliable observation. | Added up to 3 attempts per scrape, with every attempt recorded in `scrape_logs`. Exhausted retries produce an explicit `FAILED` result. |
+| Treating scrape failures as observations | A failed/partial scrape could incorrectly overwrite the previously valid price or stock state. | Separated attempt logs from valid observations: only a fully successful price + stock extraction enters `price_history`; failures preserve the last known valid state. |
+| Internal `setInterval` scheduler | Render's free-tier sleep behavior makes an in-process timer unreliable for the required 2-hour polling. | Replaced it with an authenticated scheduler endpoint triggered by cron-job.org every 2 hours. |
 
 ## 10. Testing
 
