@@ -3,8 +3,8 @@
 A full-stack, automated price and stock tracking system designed exclusively to monitor the INE mock store (`https://demo.inelabteamdev.com/`). This platform reliably extracts current pricing and stock availability, persists historical observations, handles anti-bot challenges gracefully, and provides a centralized dashboard for product management and alert notifications.
 
 ## Live Demo
-- **Frontend**: [https://ine-price-tracker-frontend.vercel.app](https://ine-price-tracker-frontend.vercel.app) *(Update with actual Vercel link if available)*
-- **Backend API**: [https://ine-price-tracker-api.onrender.com/api/health](https://ine-price-tracker-api.onrender.com/api/health) *(Update with actual Render link if available)*
+- **Frontend**: ine-price-tracker-liart.vercel.app
+
 - **GitHub Repository**: [https://github.com/Anshuman8308/ine-price-tracker](https://github.com/Anshuman8308/ine-price-tracker)
 
 ## Assignment Requirement Coverage
