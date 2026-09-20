@@ -1,0 +1,51 @@
+# Dependencies
+node_modules/
+
+# Environment
+.env
+.env.local
+.env.production
+
+# Build outputs
+frontend/dist/
+backend/dist/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Test coverage
+coverage/
+
+# Playwright
+playwright-report/
+test-results/
+
+# Temporary scraper/debug artifacts
+backend/scripts/after.png
+backend/scripts/before.png
+backend/scripts/bundle.js
+backend/scripts/deep-verify.js
+backend/scripts/dom-inspector.js
+backend/scripts/index_bundle.js
+backend/scripts/inspect-api.js
+backend/scripts/inspect-bundle.js
+backend/scripts/inspect-dom.js
+backend/scripts/inspect-price.js
+backend/scripts/inspect-reveal.js
+backend/scripts/integration-test.js
+backend/scripts/live-integration-test.js
+backend/scripts/query-db.js
+backend/scripts/screenshot.js
+backend/scripts/setup-db.js
+backend/scripts/test-reveal.js
+backend/temp_scraper.js
+backend/verify_alerts.js

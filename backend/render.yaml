@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: ine-tracker-backend
+    env: node
+    buildCommand: npm ci && npx playwright install chromium --with-deps
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PLAYWRIGHT_BROWSERS_PATH
+        value: 0
+      - key: DATABASE_URL
+        sync: false # Set this in Render dashboard
+      - key: FRONTEND_URL
+        value: https://<your-vercel-frontend-url>
+      - key: CRON_SECRET
+        sync: false # Set this in Render dashboard
