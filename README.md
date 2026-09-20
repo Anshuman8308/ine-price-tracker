@@ -3,8 +3,8 @@
 A full-stack, automated price and stock tracking system designed exclusively to monitor the INE mock store (`https://demo.inelabteamdev.com/`). This platform reliably extracts current pricing and stock availability, persists historical observations, handles anti-bot challenges gracefully, and provides a centralized dashboard for product management and alert notifications.
 
 ## Live Demo
-- **Frontend**: ine-price-tracker-liart.vercel.app
-
+- **Frontend**: [https://ine-price-tracker-liart.vercel.app/](https://ine-price-tracker-liart.vercel.app/)
+- **Backend**: [https://ine-price-tracker-dn00.onrender.com](https://ine-price-tracker-dn00.onrender.com)
 - **GitHub Repository**: [https://github.com/Anshuman8308/ine-price-tracker](https://github.com/Anshuman8308/ine-price-tracker)
 
 ## Assignment Requirement Coverage
@@ -17,7 +17,7 @@ A full-stack, automated price and stock tracking system designed exclusively to 
 | **Price + Stock Extraction** | Playwright extracts dynamic price reveals (handling zero-width characters) and stock status. |
 | **History Logging** | Only successful observations are stored in `price_history`. |
 | **Detailed Scrape Logs** | Every attempt (Success, Retried, Failed) is logged in `scrape_logs` for honest traceability. |
-| **Retry & Failure Handling** | Scraper enforces up to 3 retries with exponential backoff on timeouts/WASM challenges. Failures do NOT overwrite valid history. |
+| **Retry & Failure Handling** | Scraper supports up to 3 attempts/retries for transient failures (timeouts/challenges). Failures do NOT overwrite valid history. |
 | **Headed Demo Run** | `npm run scraper:headed` demonstrates a live visual scrape with intentionally induced failures and recovery. |
 | **External Scheduling** | Render free-tier instances sleep, so `cron-job.org` is used to reliably wake and trigger the scraper API. |
 | **Alerts (Bonus)** | Generates `PRICE_DROP`, `BACK_IN_STOCK`, and `OUT_OF_STOCK` notifications. |
@@ -25,19 +25,20 @@ A full-stack, automated price and stock tracking system designed exclusively to 
 
 ## Features
 - **Dynamic Search & Catalog**: Browse and search the mocked INE store.
-- **Automated Monitoring**: Background scheduled scraping.
+- **Automated Monitoring**: Required automatic 2-hour background scheduled scraping via external cron.
+- **Manual Scrape ("Scrape Now")**: An additional feature to immediately trigger an on-demand scrape outside the 2-hour schedule.
 - **Dashboard Interface**: View tracked products, historical price trends, and current stock status.
 - **Scrape Diagnostics**: Inspect the exact network/browser outcome of every single scrape attempt.
 - **Intelligent Alerts**: Visual toast notifications and a dedicated alerts feed for price drops and stock transitions.
-- **Resilient Execution**: Engineered to bypass the WASM PoW challenge and dynamic overlay interactions.
+- **Resilient Execution**: Engineered to handle the mock store's WASM challenge, dynamic interactions, overlays, and browser/network failures.
 
 ## Scraping Reliability
 The INE mock store employs anti-bot measures, WASM-based Proof-of-Work challenges, delayed price reveals, and layout obfuscation (e.g., zero-width characters). A lightweight HTTP scraper (like Cheerio/Axios) cannot execute the necessary JavaScript to reveal the data.
 
 To guarantee reliability, the system uses **Playwright**:
-1. **Extraction**: Waits for the WASM challenge to solve, bypasses cookie consent overlays, and extracts the revealed dynamic price.
+1. **Extraction**: Waits for the WASM challenge to solve, handles cookie consent overlays, and extracts the revealed dynamic price.
 2. **Validation**: Extracted prices are sanitized (stripping zero-width characters and currency symbols) and validated against the original DOM price.
-3. **Retries**: If a scrape times out or hits an unresolvable anti-bot loop, the system aborts, logs the failure, and retries up to 3 times with exponential backoff.
+3. **Retries**: If a scrape times out or hits an unresolvable challenge loop, the system aborts, logs the failure, and supports up to 3 attempts/retries for transient failures.
 4. **Data Integrity**: If all 3 retries fail, the attempt is marked `FAILED` in the database. Crucially, **failed scrapes do not overwrite the last known valid price/stock**, ensuring historical data remains honest and accurate.
 
 ## Architecture
@@ -83,7 +84,7 @@ Supabase
 
 ## Data Model
 - `products`: Caches the master catalog items available from the INE store.
-- `tracked_products`: Maps users to the products they are actively tracking, managing lock states and scrape frequencies.
+- `tracked_products`: Stores products selected for tracking, managing active tracking state, lock states, and scrape-frequency/scheduling information.
 - `price_history`: Stores only *successful* price and stock observations for graphing.
 - `scrape_logs`: Maintains an immutable audit trail of every execution attempt (`SUCCESS`, `RETRIED`, `FAILED`), including error messages.
 - `page_snapshots`: Stores DOM structure hashes to detect backend layout changes.
@@ -101,7 +102,7 @@ Supabase
 - `GET /api/tracked-products/:id/logs` - Retrieve the raw scrape execution audit logs.
 
 **Scheduling & Alerts**
-- `POST /api/scheduler/run` - Triggered by cron-job.org to execute due scrapes (secured via `CRON_SECRET`).
+- `POST /api/scheduler/run` - Triggered by cron-job.org to execute due scrapes (secured via the `X-Cron-Secret` request header).
 - `GET /api/alerts` - Retrieve generated price/stock notifications.
 
 ## Environment Variables
@@ -181,9 +182,9 @@ The backend utilizes **Jest** for automated unit testing.
 
 ## Deployment
 - **Frontend (Vercel)**: Standard Vite React deployment.
-- **Backend (Render)**: Deployed as a web service. Because it requires a browser engine, the Render environment is configured to install Playwright dependencies (`npx playwright install --with-deps chromium`).
+- **Backend (Render)**: Deployed as a web service. Because it requires a browser engine, the Render environment uses the `PLAYWRIGHT_BROWSERS_PATH=0` environment variable and is configured with the build command `PLAYWRIGHT_BROWSERS_PATH=0 npx playwright install chromium`.
 - **Database (Supabase)**: Serverless PostgreSQL.
-- **Scheduler (cron-job.org)**: Pings `https://[YOUR_RENDER_URL]/api/scheduler/run` every 2 hours, utilizing the `Authorization: Bearer [CRON_SECRET]` header to wake the sleeping Render instance and trigger the batch scrape.
+- **Scheduler (cron-job.org)**: Pings `https://ine-price-tracker-dn00.onrender.com/api/scheduler/run` every 2 hours, utilizing the `X-Cron-Secret: [CRON_SECRET]` header to wake the sleeping Render instance and trigger the batch scrape.
 
 ## Project Structure
 ```text
